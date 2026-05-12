@@ -9,18 +9,25 @@ app = Flask(__name__)
 DB_NAME = 'seguranca.db'
 
 def executar_query(query, params=()):
-    """Função auxiliar para conectar e executar comandos no banco"""
     conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    conn.commit()
-    resultado = cursor.fetchall()
-    conn.close()
-    return resultado
+    # Aumentar o timeout ajuda a evitar o erro de 'locked'
+    conn.execute("PRAGMA busy_timeout = 3000") 
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        conn.commit()
+        return cursor.fetchall()
+    except Exception as e:
+        print(f"Erro no banco: {e}")
+        conn.rollback() # Cancela se der erro
+        raise e
+    finally:
+        conn.close() # GARANTE que a porta do escritório será fechada
 
-@app.route('/')
-def index():
-    return "API Rodando!"
+# TESTE
+# @app.route('/')
+# def index():
+#     return "API Rodando!"
 
 # 1. Endpoint para a Raspberry Pi validar o acesso
 @app.route('/verificar_tag', methods=['POST'])
@@ -175,6 +182,23 @@ def listar_colaboradores():
         })
     
     return jsonify(lista_usuarios), 200
+
+@app.route('/colaboradores/<int:id>', methods=['DELETE'])
+def deletar_colaborador(id):
+    try:
+        # 1. Verifica se o colaborador existe antes de tentar deletar
+        colaborador = executar_query("SELECT nome FROM colaboradores WHERE id = ?", (id,))
+        
+        if not colaborador:
+            return jsonify({"erro": "Colaborador não encontrado."}), 404
+
+        # 2. Executa a exclusão
+        executar_query("DELETE FROM colaboradores WHERE id = ?", (id,))
+        
+        return jsonify({"mensagem": f"Colaborador {colaborador[0][0]} removido com sucesso!"}), 200
+
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
 
 if __name__ == '__main__':
     # '0.0.0.0' permite que a Raspberry Pi encontre o seu PC na rede local
