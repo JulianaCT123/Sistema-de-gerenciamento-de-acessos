@@ -1,187 +1,82 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 import sqlite3
 from datetime import datetime
 from database import init_db
+import os
 
-init_db()  # Inicializa o banco de dados
+# Inicializa o banco de dados se necessário
+init_db()
 
 app = Flask(__name__)
+
+# CHAVE SECRETA: Necessária para usar sessões (Login) 
+app.secret_key = 'chave_secreta_para_projeto_atitus'
+
 DB_NAME = 'seguranca.db'
 
 def executar_query(query, params=()):
+    """Função auxiliar para conectar e executar comandos no banco"""
     conn = sqlite3.connect(DB_NAME)
-    # Aumentar o timeout ajuda a evitar o erro de 'locked'
-    conn.execute("PRAGMA busy_timeout = 3000") 
-    try:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        conn.commit()
-        return cursor.fetchall()
-    except Exception as e:
-        print(f"Erro no banco: {e}")
-        conn.rollback() # Cancela se der erro
-        raise e
-    finally:
-        conn.close() # GARANTE que a porta do escritório será fechada
+    cursor = conn.cursor()
+    cursor.execute(query, params)
+    conn.commit()
+    resultado = cursor.fetchall()
+    conn.close()
+    return resultado
 
-# TESTE
-# @app.route('/')
-# def index():
-#     return "API Rodando!"
+@app.route('/')
+def index():
+    return "API Rodando!"
 
 # 1. Endpoint para a Raspberry Pi validar o acesso
 @app.route('/verificar_tag', methods=['POST'])
 def verificar_tag():
+    """Endpoint principal para a Raspberry Pi [cite: 12, 40]"""
     dados = request.json
     tag_lida = dados.get('tag_rfid')
-
-    if not tag_lida:
-        return jsonify({"status": "erro", "mensagem": "Tag não enviada"}), 400
-
-    # 1. Busca o colaborador associado à tag
-    # Buscamos o ID e Nome para registrar no log, e o status de permissão/presença
+    
     colaborador = executar_query(
         "SELECT id, nome, permissao_acesso, esta_na_sala FROM colaboradores WHERE tag_rfid = ?", 
         (tag_lida,)
     )
 
-    # 2. Caso a tag não esteja cadastrada no banco
     if not colaborador:
+        # Tentativa de invasão (Tag desconhecida) [cite: 20, 35]
         executar_query(
             "INSERT INTO logs_acesso (tag_rfid, tipo_evento, nome_colaborador) VALUES (?, ?, ?)", 
-            (tag_lida, "Tag Não Reconhecida", "DESCONHECIDO")
+            (tag_lida, "Invasão - Tag Desconhecida", "DESCONHECIDO")
         )
-        return jsonify({
-            "status": "negado", 
-            "mensagem": "Tag não cadastrada no sistema"
-        }), 403
+        return jsonify({"status": "negado", "mensagem": "Alerta: Tag não reconhecida"}), 403
 
-    # Extraímos os dados da tupla retornada pelo banco
     user_id, nome, permissao, na_sala = colaborador[0]
 
-    # 3. Caso o colaborador exista, mas não tenha permissão para esta sala
     if not permissao:
+        # Acesso negado para colaborador sem permissão [cite: 19, 26]
         executar_query(
             "INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento) VALUES (?, ?, ?, ?)", 
-            (user_id, nome, tag_lida, "Tentativa Negada")
+            (user_id, nome, tag_lida, "Acesso Negado (NDA)")
         )
-        return jsonify({
-            "status": "negado", 
-            "nome": nome, 
-            "mensagem": "Acesso restrito (NDA)"
-        }), 401
+        return jsonify({"status": "negado", "nome": nome, "mensagem": "Sem permissão de acesso"}), 401
 
-    # 4. Lógica de Entrada/Saída (Inversão de status)
-    # Se na_sala for 1 (True), novo_status será 0. Se for 0, será 1.
+    # Lógica de Entrada/Saída [cite: 17, 22, 24]
     novo_status = 0 if na_sala else 1
-    tipo_evento = "Saída" if na_sala else "Entrada"
+    tipo_evento = "Saída" if na_sala else ("Entrada (Primeira)" if na_sala == 0 else "Entrada (Retorno)")
 
-    # Atualiza o status de presença na tabela de colaboradores
+    executar_query("UPDATE colaboradores SET esta_na_sala = ? WHERE id = ?", (novo_status, user_id))
     executar_query(
-        "UPDATE colaboradores SET esta_na_sala = ? WHERE id = ?", 
-        (novo_status, user_id)
-    )
-    
-    # Registra o log oficial com ID e Nome (Chave Estrangeira)
-    executar_query(
-        """INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento) 
-           VALUES (?, ?, ?, ?)""", 
+        "INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento) VALUES (?, ?, ?, ?)", 
         (user_id, nome, tag_lida, tipo_evento)
     )
 
-    return jsonify({
-        "status": "autorizado",
-        "nome": nome,
-        "evento": tipo_evento,
-        "mensagem": f"{tipo_evento} registrada com sucesso"
-    }), 200
+    return jsonify({"status": "autorizado", "nome": nome, "evento": tipo_evento}), 200
 
-# 2. Endpoint para o Dashboard listar os logs
 @app.route('/logs', methods=['GET'])
 def listar_logs():
-    logs = executar_query("SELECT id, colaborador_id, nome_colaborador, timestamp, tipo_evento FROM logs_acesso ORDER BY timestamp DESC LIMIT 50")
-    
-    lista_logs = []
-    for l in logs:
-        lista_logs.append({
-            "id": l[0],
-            "colaborador_id": l[1],
-            "nome": l[2],
-            "data_hora": l[3],
-            "evento": l[4]
-        })
-    return jsonify(lista_logs)
-
-# CADASTRO DE COLABORADORES
-@app.route('/colaboradores', methods=['POST'])
-def cadastrar_colaborador():
-    dados = request.json
-    print(f"Dados recebidos: {dados}")
-    
-    # Pegando os dados do JSON enviado pelo Front-end
-    nome = dados.get('nome')
-    tag_rfid = dados.get('tag_rfid')
-    funcao = dados.get('funcao')
-    permissao = dados.get('permissao_acesso', 0) # Padrão é 0 (sem acesso)
-
-    try:
-        executar_query(
-            """INSERT INTO colaboradores (nome, tag_rfid, funcao, permissao_acesso) 
-               VALUES (?, ?, ?, ?)""",
-            (nome, tag_rfid, funcao, permissao)
-        )
-        return jsonify({"mensagem": "Colaborador cadastrado com sucesso!"}), 201
-    except sqlite3.IntegrityError:
-        return jsonify({"erro": "Tag RFID já cadastrada."}), 400
-
-# EDIÇÃO DE COLABORADORES
-@app.route('/colaboradores/<int:id>', methods=['PUT'])
-def editar_colaborador(id):
-    dados = request.json
-    
-    # Coletando apenas os dados necessários para a gestão
-    nome = dados.get('nome')
-    tag_rfid = dados.get('tag_rfid')
-    funcao = dados.get('funcao')
-    permissao = dados.get('permissao_acesso')
-
-    try:
-        # Atualizamos os dados cadastrais e o nível de acesso
-        # Note que a tag_rfid pode ser trocada aqui caso o colaborador mude de crachá
-        executar_query(
-            """UPDATE colaboradores 
-               SET nome = ?, tag_rfid = ?, funcao = ?, permissao_acesso = ?
-               WHERE id = ?""",
-            (nome, tag_rfid, funcao, permissao, id)
-        )
-
-        return jsonify({"mensagem": "Colaborador atualizado com sucesso!"}), 200
-
-    except sqlite3.IntegrityError:
-        # Erro caso a nova tag_rfid já esteja cadastrada para outra pessoa
-        return jsonify({"erro": "Esta Tag RFID já está em uso por outro colaborador."}), 400
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
-
-# LISTA OS COLABORADORES
-@app.route('/colaboradores', methods=['GET'])
-def listar_colaboradores():
-    # Busca todos os dados da tabela colaboradores
-    usuarios = executar_query("SELECT id, nome, tag_rfid, funcao, permissao_acesso, esta_na_sala FROM colaboradores")
-    
-    # Precisamos transformar a lista de tuplas do SQLite em uma lista de dicionários (JSON)
-    lista_usuarios = []
-    for u in usuarios:
-        lista_usuarios.append({
-            "id": u[0],
-            "nome": u[1],
-            "tag_rfid": u[2],
-            "funcao": u[3],
-            "permissao_acesso": bool(u[4]), # Converte 0/1 para True/False
-            "esta_na_sala": bool(u[5])
-        })
-    
-    return jsonify(lista_usuarios), 200
+    """Retorna logs para o Monitoramento e Dashboard [cite: 52, 61, 83]"""
+    logs = executar_query("SELECT id, nome_colaborador, timestamp, tipo_evento, tag_rfid FROM logs_acesso ORDER BY timestamp DESC LIMIT 50")
+    return jsonify([{
+        "id": l[0], "nome": l[1], "data": l[2], "evento": l[3], "tag": l[4]
+    } for l in logs])
 
 @app.route('/colaboradores/<int:id>', methods=['DELETE'])
 def deletar_colaborador(id):
@@ -201,5 +96,5 @@ def deletar_colaborador(id):
         return jsonify({"erro": str(e)}), 500
 
 if __name__ == '__main__':
-    # '0.0.0.0' permite que a Raspberry Pi encontre o seu PC na rede local
+    # '0.0.0.0' permite acesso externo (Raspberry Pi na mesma rede) [cite: 39]
     app.run(host='0.0.0.0', port=5000, debug=True)
