@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitoramento em Tempo Real - Segurança</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-card { transition: all 0.3s; border-left: 5px solid #ccc; }
+        .alert-danger-blink { 
+            animation: blinker 1.5s linear infinite; 
+            background-color: #f8d7da !important;
+            color: #842029;
+            font-weight: bold;
+        }
+        @keyframes blinker { 50% { opacity: 0.6; } }
+        .bg-dark-blue { background-color: #0d1b2a; color: white; }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark-blue shadow mb-4">
+        <div class="container">
+            <span class="navbar-brand">🛡️ Central de Segurança - Sala NDA</span>
+            <span class="badge bg-danger" id="clock">00:00:00</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">Pessoas na Sala AGORA</div>
+                    <div class="card-body">
+                        <h2 class="text-center" id="contador-presentes">0</h2>
+                        <ul class="list-group list-group-flush" id="lista-presentes">
+                            </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between">
+                        <span>Últimos Eventos Detectados</span>
+                        <small>Atualização automática (3s)</small>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Horário</th>
+                                    <th>Identificação</th>
+                                    <th>Evento</th>
+                                    <th>Tag</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feed-logs">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function atualizarRelogio() {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }
+        setInterval(atualizarRelogio, 1000);
+
+        async function fetchMonitoramento() {
+            try {
+                // 1. Buscar pessoas atualmente na sala
+                const resSala = await fetch('/api/status_sala');
+                const presentes = await resSala.json();
+                const listaPres = document.getElementById('lista-presentes');
+                document.getElementById('contador-presentes').innerText = presentes.length;
+                
+                listaPres.innerHTML = presentes.length ? '' : '<li class="list-group-item text-muted">Sala Vazia</li>';
+                presentes.forEach(p => {
+                    listaPres.innerHTML += `<li class="list-group-item border-start border-success border-4">
+                        <strong>${p.nome}</strong> <br> <small>${p.funcao}</small>
+                    </li>`;
+                });
+
+                // 2. Buscar Feed de Logs (Alertas)
+                const resLogs = await fetch('/logs');
+                const logs = await resLogs.json();
+                const feed = document.getElementById('feed-logs');
+                feed.innerHTML = '';
+
+                logs.slice(0, 10).forEach(log => {
+                    let rowClass = "";
+                    let icon = "🔔";
+
+                    if (log.evento.includes("INVASÃO")) {
+                        rowClass = "alert-danger-blink";
+                        icon = "🚨";
+                    } else if (log.evento.includes("Negado")) {
+                        rowClass = "table-warning";
+                        icon = "⚠️";
+                    }
+
+                    feed.innerHTML += `
+                        <tr class="${rowClass}">
+                            <td>${new Date(log.data).toLocaleTimeString()}</td>
+                            <td>${log.nome}</td>
+                            <td>${icon} ${log.evento}</td>
+                            <td><code>${log.tag}</code></td>
+                        </tr>
+                    `;
+                });
+
+            } catch (e) {
+                console.error("Erro na atualização:", e);
+            }
+        }
+
+        // Executa a cada 3 segundos
+        setInterval(fetchMonitoramento, 3000);
+        fetchMonitoramento(); // Execução inicial
+    </script>
+</body>
+</html>
