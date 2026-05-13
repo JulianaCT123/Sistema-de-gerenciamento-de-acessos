@@ -1,0 +1,10 @@
+id,colaborador_id,nome_colaborador,tag_rfid,timestamp,tipo_evento,data
+1,1.0,Juliana Castanho,89A23B11,2026-05-12 18:16:22,Entrada,2026-05-12
+2,,DESCONHECIDO,89A23B12,2026-05-12 18:16:56,Tag Não Reconhecida,2026-05-12
+3,2.0,techio,89A23B10,2026-05-12 18:18:10,Tentativa Negada,2026-05-12
+4,1.0,Juliana Castanho,89A23B11,2026-05-12 18:18:45,Saída,2026-05-12
+5,1.0,Juliana Castanho Atualizado,99AABB22,2026-05-12 19:09:30,Entrada,2026-05-12
+6,1.0,Juliana Castanho Atualizado,99AABB22,2026-05-12 19:09:40,Saída,2026-05-12
+7,2.0,techio,89A23B10,2026-05-12 19:09:53,Tentativa Negada,2026-05-12
+8,2.0,techio,89A23B10,2026-05-12 19:10:03,Tentativa Negada,2026-05-12
+9,,DESCONHECIDO,89A23B1,2026-05-12 19:10:08,Tag Não Reconhecida,2026-05-12
