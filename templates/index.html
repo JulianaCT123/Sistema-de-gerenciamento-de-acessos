@@ -2,17 +2,18 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Gerenciamento de Acesso - NDA Studio</title>
+    <title>Gerenciamento de Acesso</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <header>
-        <h1>Painel Administrativo - Sala de Segurança</h1>
+        <h1>Painel Administrativo</h1>
     </header>
 
     <main>
         <section id="form-section">
             <h2 id="form-title">Cadastrar Novo Colaborador</h2>
+            <button onclick="logout()">Sair do Sistema</button>
             <form id="colaborador-form">
                 <input type="hidden" id="colaborador-id">
                 <input type="text" id="nome" placeholder="Nome Completo" required>

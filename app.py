@@ -202,6 +202,21 @@ def deletar_colaborador(id):
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
+# ---------- ENDPOINTS DE LOGIN DE USUÁRIO PARA O SISTEMA DE GERENCIAMENTO ----------
+@app.route('/login', methods=['POST'])
+def login():
+    dados = request.json
+    usuario = dados.get('username')
+    senha = dados.get('password')
+
+    # Busca o usuário no banco
+    user = executar_query("SELECT id FROM usuarios_sistema WHERE username = ? AND password = ?", (usuario, senha))
+
+    if user:
+        return jsonify({"status": "sucesso", "mensagem": "Login realizado"}), 200
+    else:
+        return jsonify({"status": "erro", "mensagem": "Usuário ou senha incorretos"}), 401
+
 if __name__ == '__main__':
     # '0.0.0.0' permite que a Raspberry Pi encontre o seu PC na rede local
     app.run(host='0.0.0.0', port=5000, debug=True)

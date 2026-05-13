@@ -28,6 +28,25 @@ def init_db():
         )
     ''')
 
+    # Criando tabela de usuarios do sistema de gerenciamento
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios_sistema (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL -- Em um projeto real, usaríamos hash
+        )
+    ''')
+
+    try:
+        # O 'OR IGNORE' serve para não dar erro se o admin já existir
+        cursor.execute("""
+            INSERT OR IGNORE INTO usuarios_sistema (username, password) 
+            VALUES (?, ?)
+        """, ('admin', '1234'))
+        conn.commit()
+    except Exception as e:
+        print(f"Erro ao criar admin padrão: {e}")
+
     conn.commit()
     conn.close()
     print("Banco de dados e tabelas criados com sucesso!")

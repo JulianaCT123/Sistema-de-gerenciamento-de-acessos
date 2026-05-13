@@ -1,5 +1,11 @@
 const API_URL = "http://127.0.0.1:5000";
 
+// Verifica se existe a marcação de login no navegador
+if (localStorage.getItem('usuario_logado') !== 'true') {
+    // Se não estiver logado, manda de volta para o login
+    window.location.href = "login.html";
+}
+
 // 1. Carregar Colaboradores
 async function carregarColaboradores() {
     const res = await fetch(`${API_URL}/colaboradores`);
@@ -72,6 +78,11 @@ function limparFormulario() {
     document.getElementById('colaborador-id').value = '';
     document.getElementById('form-title').innerText = "Cadastrar Novo Colaborador";
     document.getElementById('btn-cancelar').style.display = 'none';
+}
+
+function logout() {
+    localStorage.removeItem('usuario_logado'); // Apaga a permissão
+    window.location.href = "login.html"; // Volta para o início
 }
 
 // Inicializar
