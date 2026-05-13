@@ -217,6 +217,33 @@ def login():
     else:
         return jsonify({"status": "erro", "mensagem": "Usuário ou senha incorretos"}), 401
 
+# ---------- ENDPOINS DE MONITORAMENTO EM TEMPO REAL ----------
+@app.route('/monitoramento_dados', methods=['GET'])
+def monitoramento_dados():
+    # 1. Colaboradores atualmente na sala
+    na_sala = executar_query("SELECT nome, funcao FROM colaboradores WHERE esta_na_sala = 1")
+    
+    # 2. Últimos eventos (Geral)
+    ultimos_eventos = executar_query("""
+        SELECT nome_colaborador, tag_rfid, timestamp, tipo_evento 
+        FROM logs_acesso 
+        ORDER BY timestamp DESC LIMIT 10
+    """)
+    
+    # 3. Alertas (Não autorizados e Tags desconhecidas)
+    alertas = executar_query("""
+        SELECT tag_rfid, timestamp, tipo_evento 
+        FROM logs_acesso 
+        WHERE tipo_evento IN ('Tentativa Negada', 'Tag Não Reconhecida')
+        ORDER BY timestamp DESC LIMIT 5
+    """)
+
+    return jsonify({
+        "na_sala": na_sala,
+        "eventos": ultimos_eventos,
+        "alertas": alertas
+    })
+
 if __name__ == '__main__':
     # '0.0.0.0' permite que a Raspberry Pi encontre o seu PC na rede local
     app.run(host='0.0.0.0', port=5000, debug=True)

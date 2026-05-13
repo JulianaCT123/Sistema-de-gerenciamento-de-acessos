@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitoramento em Tempo Real - NDA Studio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="monitor-body">
+    <header>
+        <h1>SISTEMA DE MONITORAMENTO - ACESSO RESTRITO</h1>
+        <div id="relogio"></div>
+    </header>
+
+    <div class="monitor-grid">
+        <section class="card">
+            <h3>🔵 Atualmente na Sala</h3>
+            <ul id="lista-presenca"></ul>
+        </section>
+
+        <section class="card">
+            <h3>🕒 Histórico Recente</h3>
+            <table id="tabela-atividades">
+                <thead>
+                    <tr>
+                        <th>Quem</th>
+                        <th>Hora</th>
+                        <th>Evento</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="card alerta">
+            <h3>⚠️ Alertas e Segurança</h3>
+            <div id="lista-alertas"></div>
+        </section>
+    </div>
+
+    <script src="/static/monitor.js"></script>
+</body>
+</html>
