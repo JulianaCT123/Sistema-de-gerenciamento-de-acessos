@@ -1,4 +1,5 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import sqlite3
 from datetime import datetime
 from database import init_db
@@ -7,6 +8,7 @@ init_db()  # Inicializa o banco de dados
 
 app = Flask(__name__)
 DB_NAME = 'seguranca.db'
+CORS(app)
 
 def executar_query(query, params=()):
     conn = sqlite3.connect(DB_NAME)
@@ -24,10 +26,10 @@ def executar_query(query, params=()):
     finally:
         conn.close() # GARANTE que a porta do escritório será fechada
 
-# TESTE
-# @app.route('/')
-# def index():
-#     return "API Rodando!"
+@app.route('/')
+def index():
+    # Isso vai procurar o arquivo index.html dentro da pasta /templates
+    return render_template('index.html')
 
 # 1. Endpoint para a Raspberry Pi validar o acesso
 @app.route('/verificar_tag', methods=['POST'])

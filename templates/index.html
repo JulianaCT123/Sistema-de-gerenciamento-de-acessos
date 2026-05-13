@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciamento de Acesso - NDA Studio</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Painel Administrativo - Sala de Segurança</h1>
+    </header>
+
+    <main>
+        <section id="form-section">
+            <h2 id="form-title">Cadastrar Novo Colaborador</h2>
+            <form id="colaborador-form">
+                <input type="hidden" id="colaborador-id">
+                <input type="text" id="nome" placeholder="Nome Completo" required>
+                <input type="text" id="tag_rfid" placeholder="UID da Tag RFID" required>
+                <input type="text" id="funcao" placeholder="Função/Cargo" required>
+                <label>
+                    <input type="checkbox" id="permissao_acesso"> Possui acesso à sala?
+                </label>
+                <button type="submit" id="btn-salvar">Salvar Colaborador</button>
+                <button type="button" id="btn-cancelar" style="display:none;">Cancelar Edição</button>
+            </form>
+        </section>
+
+        <hr>
+
+        <section id="list-section">
+            <h2>Colaboradores Cadastrados</h2>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Tag RFID</th>
+                        <th>Cargo</th>
+                        <th>Acesso</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-corpo">
+                    </tbody>
+            </table>
+        </section>
+    </main>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
