@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = "http://192.168.0.7:5000";
 
 // Verifica se existe a marcação de login no navegador
 if (localStorage.getItem('usuario_logado') !== 'true') {
@@ -78,7 +78,31 @@ function limparFormulario() {
     document.getElementById('colaborador-id').value = '';
     document.getElementById('form-title').innerText = "Cadastrar Novo Colaborador";
     document.getElementById('btn-cancelar').style.display = 'none';
+    // Mostra o botão de cancelar
+    document.getElementById('btn-cancelar').style.display = 'inline-block';
+    
+    // Muda o título para o usuário saber que está editando [cite: 48]
+    document.getElementById('form-title').innerText = 'Editando: ' + colaborador.nome;
 }
+
+function cancelarEdicao() {
+    // 1. Limpa os campos de texto
+    document.getElementById('colaborador-id').value = '';
+    document.getElementById('nome').value = '';
+    document.getElementById('tag_rfid').value = '';
+    document.getElementById('funcao').value = '';
+    document.getElementById('permissao_acesso').checked = false;
+
+    // 2. Volta os textos originais
+    document.getElementById('form-title').innerText = 'Cadastrar Novo Colaborador';
+    document.getElementById('btn-salvar').innerText = 'Salvar Colaborador';
+
+    // 3. Esconde o botão de cancelar
+    document.getElementById('btn-cancelar').style.display = 'none';
+}
+
+// 4. ATIVA O BOTÃO: Adiciona o ouvinte de clique
+document.getElementById('btn-cancelar').addEventListener('click', cancelarEdicao);
 
 function logout() {
     localStorage.removeItem('usuario_logado'); // Apaga a permissão

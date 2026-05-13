@@ -1,4 +1,4 @@
-const API_URL = "http://127.0.0.1:5000";
+const API_URL = "http://192.168.0.7:5000";
 
 async function fazerLogin(event) {
     event.preventDefault(); 
