@@ -1,4 +1,4 @@
-const API_URL = "http://192.168.0.7:5000";
+const API_URL = "http://10.1.25.41:5000";
 
 async function fazerLogin(event) {
     event.preventDefault(); 
@@ -17,7 +17,7 @@ async function fazerLogin(event) {
 
         if (res.ok) {
             localStorage.setItem('usuario_logado', 'true');
-            window.location.href = "index.html"; 
+            window.location.href = "/gerenciamento"; 
         } else {
             alert(data.mensagem || "Usuário ou senha incorretos");
         }

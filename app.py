@@ -26,77 +26,66 @@ def executar_query(query, params=()):
     finally:
         conn.close() # GARANTE que a porta do escritório será fechada
 
+# @app.route('/')
+# def index():
+#     # Isso vai procurar o arquivo index.html dentro da pasta /templates
+#     return render_template('index.html')
+
 @app.route('/')
-def index():
-    # Isso vai procurar o arquivo index.html dentro da pasta /templates
+def pagina_login():
+    return render_template('login.html')
+
+@app.route('/gerenciamento')
+def pagina_admin():
     return render_template('index.html')
 
-# 1. Endpoint para a Raspberry Pi validar o acesso
+@app.route('/monitor')
+def pagina_monitoramento():
+    return render_template('monitor.html')
+
+
+@app.route('/obter_cache', methods=['GET'])
+def obter_cache():
+    # Busca apenas quem tem permissão de acesso à sala
+    colaboradores = executar_query("SELECT tag_rfid, nome FROM colaboradores WHERE permissao_acesso = 1")
+    
+    # Transforma a lista de tuplas em um dicionário para o JSON
+    cache = {}
+    if colaboradores:
+        for tag, nome in colaboradores:
+            cache[tag] = nome
+            
+    return jsonify(cache), 200
+
 @app.route('/verificar_tag', methods=['POST'])
 def verificar_tag():
-    dados = request.json
-    tag_lida = dados.get('tag_rfid')
-
-    if not tag_lida:
-        return jsonify({"status": "erro", "mensagem": "Tag não enviada"}), 400
-
-    # 1. Busca o colaborador associado à tag
-    # Buscamos o ID e Nome para registrar no log, e o status de permissão/presença
-    colaborador = executar_query(
-        "SELECT id, nome, permissao_acesso, esta_na_sala FROM colaboradores WHERE tag_rfid = ?", 
-        (tag_lida,)
-    )
-
-    # 2. Caso a tag não esteja cadastrada no banco
-    if not colaborador:
-        executar_query(
-            "INSERT INTO logs_acesso (tag_rfid, tipo_evento, nome_colaborador) VALUES (?, ?, ?)", 
-            (tag_lida, "Tag Não Reconhecida", "DESCONHECIDO")
-        )
-        return jsonify({
-            "status": "negado", 
-            "mensagem": "Tag não cadastrada no sistema"
-        }), 403
-
-    # Extraímos os dados da tupla retornada pelo banco
-    user_id, nome, permissao, na_sala = colaborador[0]
-
-    # 3. Caso o colaborador exista, mas não tenha permissão para esta sala
-    if not permissao:
-        executar_query(
-            "INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento) VALUES (?, ?, ?, ?)", 
-            (user_id, nome, tag_lida, "Tentativa Negada")
-        )
-        return jsonify({
-            "status": "negado", 
-            "nome": nome, 
-            "mensagem": "Acesso restrito (NDA)"
-        }), 401
-
-    # 4. Lógica de Entrada/Saída (Inversão de status)
-    # Se na_sala for 1 (True), novo_status será 0. Se for 0, será 1.
-    novo_status = 0 if na_sala else 1
-    tipo_evento = "Saída" if na_sala else "Entrada"
-
-    # Atualiza o status de presença na tabela de colaboradores
-    executar_query(
-        "UPDATE colaboradores SET esta_na_sala = ? WHERE id = ?", 
-        (novo_status, user_id)
-    )
+    data = request.get_json()
+    tag_lida = data.get('tag')
     
-    # Registra o log oficial com ID e Nome (Chave Estrangeira)
-    executar_query(
-        """INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento) 
-           VALUES (?, ?, ?, ?)""", 
-        (user_id, nome, tag_lida, tipo_evento)
-    )
-
-    return jsonify({
-        "status": "autorizado",
-        "nome": nome,
-        "evento": tipo_evento,
-        "mensagem": f"{tipo_evento} registrada com sucesso"
-    }), 200
+    # Busca o colaborador no banco
+    colaborador = executar_query("SELECT id, nome, permissao_acesso, esta_na_sala FROM colaboradores WHERE tag_rfid = ?", (tag_lida,))
+    
+    if colaborador:
+        colab_id, nome, tem_permissao, na_sala = colaborador[0]
+        
+        if tem_permissao:
+            # Lógica de Entrada e Saída
+            novo_status = 0 if na_sala else 1
+            tipo_evento = "SAIDA" if na_sala else "ENTRADA"
+            
+            # Atualiza e salva o log
+            executar_query("UPDATE colaboradores SET esta_na_sala = ? WHERE id = ?", (novo_status, colab_id))
+            executar_query("INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento) VALUES (?, ?, ?, ?)", (colab_id, nome, tag_lida, tipo_evento))
+            
+            return jsonify({"status": "sucesso", "nome": nome, "evento": tipo_evento}), 200
+        else:
+            # Sem permissão
+            executar_query("INSERT INTO logs_acesso (tag_rfid, tipo_evento) VALUES (?, ?)", (tag_lida, "TENTATIVA_NEGADA"))
+            return jsonify({"status": "negado", "mensagem": "Sem permissão"}), 403
+    else:
+        # Tag desconhecida (Invasão)
+        executar_query("INSERT INTO logs_acesso (tag_rfid, tipo_evento) VALUES (?, ?)", (tag_lida, "TAG_DESCONHECIDA"))
+        return jsonify({"status": "invasao", "mensagem": "Tag não reconhecida"}), 404
 
 # 2. Endpoint para o Dashboard listar os logs
 @app.route('/logs', methods=['GET'])

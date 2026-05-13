@@ -1,4 +1,4 @@
-const API_URL = "http://192.168.0.7:5000";
+const API_URL = "http://10.1.25.41:5000";
 
 async function atualizarPainel() {
     try {

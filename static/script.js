@@ -1,9 +1,9 @@
-const API_URL = "http://192.168.0.7:5000";
+const API_URL = "http://10.1.25.41:5000";
 
 // Verifica se existe a marcação de login no navegador
 if (localStorage.getItem('usuario_logado') !== 'true') {
     // Se não estiver logado, manda de volta para o login
-    window.location.href = "login.html";
+    window.location.href = "/";
 }
 
 // 1. Carregar Colaboradores
@@ -82,7 +82,7 @@ function limparFormulario() {
     document.getElementById('btn-cancelar').style.display = 'inline-block';
     
     // Muda o título para o usuário saber que está editando [cite: 48]
-    document.getElementById('form-title').innerText = 'Editando: ' + colaborador.nome;
+  
 }
 
 function cancelarEdicao() {
@@ -106,7 +106,7 @@ document.getElementById('btn-cancelar').addEventListener('click', cancelarEdicao
 
 function logout() {
     localStorage.removeItem('usuario_logado'); // Apaga a permissão
-    window.location.href = "login.html"; // Volta para o início
+    window.location.href = "/"; // Volta para o início
 }
 
 // Inicializar
