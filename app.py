@@ -87,6 +87,56 @@ def verificar_tag():
         executar_query("INSERT INTO logs_acesso (tag_rfid, tipo_evento) VALUES (?, ?)", (tag_lida, "TAG_DESCONHECIDA"))
         return jsonify({"status": "invasao", "mensagem": "Tag não reconhecida"}), 404
 
+@app.route('/sincronizar_logs', methods=['POST'])
+def sincronizar_logs():
+    try:
+        logs_offline = request.get_json()
+        print(f"--- INICIANDO SINCRONIZAÇÃO DE {len(logs_offline)} LOGS ---")
+        
+        if not logs_offline:
+            return jsonify({"status": "vazio"}), 200
+
+        for log in logs_offline:
+            tag = log.get('tag')
+            tipo_evento = log.get('status')
+            timestamp = log.get('horario')
+            
+            print(f"Sincronizando: Tag {tag} | Evento {tipo_evento} | Hora {timestamp}")
+
+            # Busca o estado atual
+            colaborador = executar_query("SELECT id, nome, esta_na_sala FROM colaboradores WHERE tag_rfid = ?", (tag,))
+
+            if colaborador:
+                colab_id, nome, na_sala = colaborador[0]
+                
+                if tipo_evento == "ENTRADA_OFFLINE":
+                    novo_status = 0 if na_sala else 1
+                    evento_real = "SAIDA_OFFLINE" if na_sala else "ENTRADA_OFFLINE"
+                    
+                    executar_comando("UPDATE colaboradores SET esta_na_sala = ? WHERE id = ?", (novo_status, colab_id))
+                    executar_comando(
+                        "INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento, timestamp) VALUES (?, ?, ?, ?, ?)", 
+                        (colab_id, nome, tag, evento_real, timestamp)
+                    )
+                else:
+                    executar_comando(
+                        "INSERT INTO logs_acesso (colaborador_id, nome_colaborador, tag_rfid, tipo_evento, timestamp) VALUES (?, ?, ?, ?, ?)", 
+                        (colab_id, nome, tag, tipo_evento, timestamp)
+                    )
+            else:
+                executar_comando(
+                    "INSERT INTO logs_acesso (tag_rfid, tipo_evento, timestamp) VALUES (?, ?, ?)", 
+                    (tag, tipo_evento, timestamp)
+                )
+
+        print("--- SINCRONIZAÇÃO CONCLUÍDA COM SUCESSO ---")
+        return jsonify({"status": "sucesso"}), 200
+
+    except Exception as e:
+        # ISSO AQUI VAI SALVAR A NOSSA VIDA:
+        print(f"ERRO CRÍTICO NA SINCRONIZAÇÃO: {e}")
+        return jsonify({"status": "erro", "detalhe": str(e)}), 500
+
 # 2. Endpoint para o Dashboard listar os logs
 @app.route('/logs', methods=['GET'])
 def listar_logs():
